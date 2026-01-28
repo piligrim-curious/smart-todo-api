@@ -1,0 +1,135 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/smart_todo_db
+    username: todo_user
+    password: todo_pass
+    driver-class-name: org.postgresql.Driver
+
+  hikari:
+    connection-timeout: 30000  # 30 секунд
+    maximum-pool-size: 10
+    minimum-idle: 5
+    idle-timeout: 600000  # 10 минут
+    max-lifetime: 1800000  # 30 минут
+
+  jpa:
+    hibernate:
+      # Стратегия DDL:
+      #   validate  - только проверяет схему
+      #   update    - обновляет схему (осторожно в прод!)
+      #   create    - пересоздаёт при каждом запуске
+      #   create-drop - создаёт при старте, удаляет при остановке
+      ddl-auto: update  # В прод используйте миграции (Liquibase/Flyway)
+
+    # Свойства Hibernate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true  # Форматировать SQL в логах
+        jdbc:
+          batch_size: 20  # Размер батча для bulk операций
+
+        # Показывать значения параметров в логах (только для разработки!)
+        show_sql: false  # Включайте только для отладки!
+        # use_sql_comments: true
+
+    # Отключаем автоматическое создание сессий
+    open-in-view: false  # Важно для предотвращения проблем с производительностью
+
+  output:
+    ansi:
+      enabled: ALWAYS  # Цветные логи в консоли
+
+  application:
+    name: project
+
+app:
+  # Настройки внешнего API (Advice Slip)
+  advice-api:
+    url: https://api.adviceslip.com/advice
+    timeout: 5000  # 5 секунд таймаут
+
+  # Настройки пагинации по умолчанию
+  pagination:
+    default-page-size: 20
+    max-page-size: 100
+
+# ========================
+# ACTUATOR (МОНИТОРИНГ)
+# ========================
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus  # Какие эндпоинты открыть
+      base-path: /actuator  # Префикс для эндпоинтов мониторинга
+
+  endpoint:
+    health:
+      show-details: always  # Детальная информация о здоровье
+      probes:
+        enabled: true  # Включить readiness/liveness пробы
+
+  # Метрики для Prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: smart-todo-api
+
+# ========================
+# ПРОФИЛИ
+# ========================
+
+# Профиль по умолчанию (активируется автоматически)
+---
+# Профиль для разработки
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  jpa:
+    properties:
+      hibernate:
+        show_sql: true  # Показывать SQL в логах
+        format_sql: true
+
+  sql:
+    init:
+      mode: always  # Выполнять init.sql при запуске
+
+logging:
+  level:
+    com.yourname.smarttodo: DEBUG  # Логи на уровне DEBUG для нашего пакета
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG  # SQL запросы
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE  # Параметры SQL
+
+---
+# Профиль для тестирования
+spring:
+  config:
+    activate:
+      on-profile: test
+
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
